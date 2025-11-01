@@ -33,7 +33,6 @@ movies_df = netflix_df.filter(col("type") == "Movie")
 # print(f"Total de filmes: {movies_df.count()}")
 
 def remove_stopwords(text):
-    """Remove stopwords e retorna string com palavras significativas"""
     if text is None or text == "":
         return ""
     text = text.lower()
@@ -74,7 +73,6 @@ series_top_desc_words = get_top_words(series_df, "description_scraped", 10)
 movies_top_desc_words = get_top_words(movies_df, "description_scraped", 10)
 
 def get_top_genres(df, top_n=5):
-    """Extrai os top N gêneros mais frequentes"""
     genres_df = df.select(explode(split(col("listed_in"), ",")).alias("genre")) \
         .withColumn("genre", trim(col("genre"))) \
         .filter(col("genre") != "") \
@@ -89,7 +87,6 @@ series_top_genres = get_top_genres(series_df, 5)
 movies_top_genres = get_top_genres(movies_df, 5)
 
 def get_top_title_words(df, top_n=10):
-    """Extrai as top N palavras mais frequentes dos títulos"""
     title_words_df = df.select(
         explode(split(lower(regexp_replace(col("title"), "[^a-zA-Z\\s]", "")), " ")).alias("word")
     ).filter(col("word") != "") \
@@ -104,18 +101,10 @@ def get_top_title_words(df, top_n=10):
     return title_words_df.collect()
 
 series_top_title_words = get_top_title_words(series_df, 10)
-print(f"Top 10 palavras em títulos de SÉRIES: {', '.join([row['word'] for row in series_top_title_words])}")
 
 movies_top_title_words = get_top_title_words(movies_df, 10)
-print(f"Top 10 palavras em títulos de FILMES: {', '.join([row['word'] for row in movies_top_title_words])}")
-
-print("\n" + "="*80)
-print("APLICANDO SISTEMA DE PONTUAÇÃO")
-print("="*80)
 
 def calculate_scores(df, top_desc_words, top_genres, top_title_words):
-    """Calcula pontuação baseada nos 4 critérios"""
-    
     desc_word_scores = {row['word']: (10 - idx) for idx, row in enumerate(top_desc_words)}
     genre_scores = {row['genre']: (5 - idx) * 5 for idx, row in enumerate(top_genres)}
     title_word_scores = {row['word']: (10 - idx) for idx, row in enumerate(top_title_words)}
@@ -204,12 +193,6 @@ movies_to_save = top_15_movies.select(
 
 series_to_save.coalesce(1).write.mode("overwrite").option("header", "true").csv("./top_15_series_temp")
 movies_to_save.coalesce(1).write.mode("overwrite").option("header", "true").csv("./top_15_movies_temp")
-
-series_results = series_to_save.collect()
-for idx, row in enumerate(series_results, 1):
-    print(f"\n#{idx}. {row['title']} ({row['release_year']}) - {row['total_points']} pontos")
-    print(f"    Gêneros: {row['listed_in']}")
-    print(f"    Pontos: C1={row['points_criterion_1']}, C2={row['points_criterion_2']}, C3={row['points_criterion_3']}, C4={row['points_criterion_4']}")
 
 # Fechar SparkSession
 spark.stop()
