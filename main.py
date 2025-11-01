@@ -6,14 +6,12 @@ from pyspark.sql.functions import (
 from pyspark.sql.types import StringType, IntegerType, ArrayType
 from nltk.corpus import stopwords
 import nltk
-import os
-import shutil
+from collections import Counter
 
 # Download NLTK stopwords
 nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
 
-# Start Spark Session
 spark = SparkSession.builder \
     .appName("NetflixAnalysis") \
     .master("local[*]") \
@@ -29,14 +27,14 @@ netflix_df = spark.read.csv(
 series_df = netflix_df.filter(col("type") == "TV Show")
 movies_df = netflix_df.filter(col("type") == "Movie")
 
-# print(f"Total de séries: {series_df.count()}")
-# print(f"Total de filmes: {movies_df.count()}")
-
 def remove_stopwords(text):
+    """Remove stopwords e retorna string com palavras significativas"""
     if text is None or text == "":
         return ""
+    # Converter para minúsculas, remover pontuação
     text = text.lower()
     words = text.split()
+    # Filtrar stopwords e palavras muito curtas
     filtered_words = [word for word in words 
                      if word not in stop_words and len(word) > 2 
                      and word.isalpha()]
@@ -54,11 +52,13 @@ movies_df = movies_df.withColumn(
     remove_stopwords_udf(col("description"))
 )
 
+# Cache dos DataFrames para reutilização
 series_df.cache()
 movies_df.cache()
 
-
 def get_top_words(df, column_name, top_n=10):
+    """Extrai as top N palavras mais frequentes de uma coluna"""
+    # Explodir palavras e contar frequência
     words_df = df.select(explode(split(col(column_name), " ")).alias("word")) \
         .filter(col("word") != "") \
         .groupBy("word") \
@@ -73,6 +73,7 @@ series_top_desc_words = get_top_words(series_df, "description_scraped", 10)
 movies_top_desc_words = get_top_words(movies_df, "description_scraped", 10)
 
 def get_top_genres(df, top_n=5):
+    """Extrai os top N gêneros mais frequentes"""
     genres_df = df.select(explode(split(col("listed_in"), ",")).alias("genre")) \
         .withColumn("genre", trim(col("genre"))) \
         .filter(col("genre") != "") \
@@ -84,9 +85,13 @@ def get_top_genres(df, top_n=5):
     return genres_df.collect()
 
 series_top_genres = get_top_genres(series_df, 5)
+print(f"Top 5 gêneros de SÉRIES: {', '.join([row['genre'] for row in series_top_genres])}")
+
 movies_top_genres = get_top_genres(movies_df, 5)
+print(f"Top 5 gêneros de FILMES: {', '.join([row['genre'] for row in movies_top_genres])}")
 
 def get_top_title_words(df, top_n=10):
+    """Extrai as top N palavras mais frequentes dos títulos"""
     title_words_df = df.select(
         explode(split(lower(regexp_replace(col("title"), "[^a-zA-Z\\s]", "")), " ")).alias("word")
     ).filter(col("word") != "") \
@@ -105,10 +110,11 @@ series_top_title_words = get_top_title_words(series_df, 10)
 movies_top_title_words = get_top_title_words(movies_df, 10)
 
 def calculate_scores(df, top_desc_words, top_genres, top_title_words):
+    """Calcula pontuação baseada nos 4 critérios"""
     desc_word_scores = {row['word']: (10 - idx) for idx, row in enumerate(top_desc_words)}
     genre_scores = {row['genre']: (5 - idx) * 5 for idx, row in enumerate(top_genres)}
     title_word_scores = {row['word']: (10 - idx) for idx, row in enumerate(top_title_words)}
-    
+
     def score_description(desc_text):
         if desc_text is None or desc_text == "":
             return 0
@@ -173,9 +179,9 @@ def calculate_scores(df, top_desc_words, top_genres, top_title_words):
     return df
 
 series_scored = calculate_scores(series_df, series_top_desc_words, series_top_genres, series_top_title_words)
-
 movies_scored = calculate_scores(movies_df, movies_top_desc_words, movies_top_genres, movies_top_title_words)
 
+print("\nSelecionando top 15...")
 top_15_series = series_scored.orderBy(col("total_points").desc()).limit(15)
 top_15_movies = movies_scored.orderBy(col("total_points").desc()).limit(15)
 
@@ -191,8 +197,42 @@ movies_to_save = top_15_movies.select(
     "points_criterion_3", "points_criterion_4", "total_points"
 )
 
-series_to_save.coalesce(1).write.mode("overwrite").option("header", "true").csv("./top_15_series_temp")
-movies_to_save.coalesce(1).write.mode("overwrite").option("header", "true").csv("./top_15_movies_temp")
+series_to_save.coalesce(1).write.mode("overwrite").option("header", "true").csv("./output/top_15_series_temp")
+movies_to_save.coalesce(1).write.mode("overwrite").option("header", "true").csv("./output/top_15_movies_temp")
+
+series_results = series_to_save.collect()
+for idx, row in enumerate(series_results, 1):
+    print(f"\n#{idx}. {row['title']} ({row['release_year']}) - {row['total_points']} pontos")
+    print(f"    Gêneros: {row['listed_in']}")
+    print(f"    Pontos: C1={row['points_criterion_1']}, C2={row['points_criterion_2']}, C3={row['points_criterion_3']}, C4={row['points_criterion_4']}")
+
+print("\n" + "="*80)
+print("TOP 15 FILMES COM MAIOR PONTUAÇÃO")
+print("="*80)
+
+movies_results = movies_to_save.collect()
+for idx, row in enumerate(movies_results, 1):
+    print(f"\n#{idx}. {row['title']} ({row['release_year']}) - {row['total_points']} pontos")
+    print(f"    Gêneros: {row['listed_in']}")
+    print(f"    Pontos: C1={row['points_criterion_1']}, C2={row['points_criterion_2']}, C3={row['points_criterion_3']}, C4={row['points_criterion_4']}")
+
+
+# Renomear arquivos CSV para o nome final
+import os
+import shutil
+
+def move_csv_file(temp_dir, final_name):
+    """Move o arquivo CSV da pasta temporária para o nome final"""
+    if os.path.exists(temp_dir):
+        csv_files = [f for f in os.listdir(temp_dir) if f.endswith('.csv')]
+        if csv_files:
+            temp_file = os.path.join(temp_dir, csv_files[0])
+            shutil.move(temp_file, final_name)
+            shutil.rmtree(temp_dir)
+            print(f"✓ {final_name} criado com sucesso!")
+
+move_csv_file("./output/top_15_series_temp", "./top_15_series.csv")
+move_csv_file("./output/top_15_movies_temp", "./top_15_movies.csv")
 
 # Fechar SparkSession
 spark.stop()
