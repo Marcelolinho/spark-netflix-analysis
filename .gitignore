@@ -1,0 +1,14 @@
+.venv
+.vscode
+.idea
+__pycache__
+*.pyc
+data/
+output/
+logs/
+notebooks/
+.env
+.ipynb_checkpoints
+.DS_Store
+*.sqlite3
+*.log
