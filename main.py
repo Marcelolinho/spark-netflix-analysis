@@ -3,6 +3,7 @@ from pyspark.sql.functions import (
     udf, col, explode, split, lower, regexp_replace, trim, 
     when, sum as spark_sum, array_contains, size, filter as spark_filter
 )
+from pyspark.sql.functions import min as spark_min, max as spark_max, round as spark_round
 from pyspark.sql.types import StringType, IntegerType, ArrayType
 from nltk.corpus import stopwords
 import nltk
@@ -214,6 +215,30 @@ def calculate_scores(df, top_desc_words, top_genres, top_title_words):
         col("points_criterion_4")
     )
     
+    # Calcular min e max pontuação para normalização
+    
+    stats = df.agg(
+        spark_min("total_points").alias("min_points"),
+        spark_max("total_points").alias("max_points")
+    ).collect()[0]
+    
+    min_points = stats["min_points"]
+    max_points = stats["max_points"]
+    
+    # Adicionar coluna de sucesso (60-95% usando Min-Max Scaling)
+    if max_points == min_points:
+        # Se todos têm a mesma pontuação, atribuir 77.5% (média de 60 e 95)
+        df = df.withColumn("sucesso", spark_round(col("total_points") * 0 + 77.5, 2))
+    else:
+        # sucesso = 60 + ((pontuacao - min_pontuacao) / (max_pontuacao - min_pontuacao)) * 35
+        df = df.withColumn(
+            "sucesso",
+            spark_round(
+                60 + ((col("total_points") - min_points) / (max_points - min_points)) * 35,
+                2
+            )
+        )
+    
     return df
 
 # Calculando tudo dos datasets
@@ -241,37 +266,37 @@ disney_top_15_movies = disney_movies_scored.orderBy(col("total_points").desc()).
 netflix_series_to_save = netflix_top_15_series.select(
     "title", "listed_in", "release_year", "rating", "description",
     "points_criterion_1", "points_criterion_2", 
-    "points_criterion_3", "points_criterion_4", "total_points"
+    "points_criterion_3", "points_criterion_4", "total_points", "sucesso"
 )
 
 netflix_movies_to_save = netflix_top_15_movies.select(
     "title", "listed_in", "release_year", "rating", "description",
     "points_criterion_1", "points_criterion_2", 
-    "points_criterion_3", "points_criterion_4", "total_points"
+    "points_criterion_3", "points_criterion_4", "total_points", "sucesso"
 )
 
 amazon_movies_to_save = amazon_top_15_movies.select(
     "title", "listed_in", "release_year", "rating", "description",
     "points_criterion_1", "points_criterion_2", 
-    "points_criterion_3", "points_criterion_4", "total_points"
+    "points_criterion_3", "points_criterion_4", "total_points", "sucesso"
 )
 
 amazon_series_tos_save = amazon_top_15_series.select(
     "title", "listed_in", "release_year", "rating", "description",
     "points_criterion_1", "points_criterion_2", 
-    "points_criterion_3", "points_criterion_4", "total_points"
+    "points_criterion_3", "points_criterion_4", "total_points", "sucesso"
 )
 
 disney_series_to_save = disney_top_15_series.select(
     "title", "listed_in", "release_year", "rating", "description",
     "points_criterion_1", "points_criterion_2", 
-    "points_criterion_3", "points_criterion_4", "total_points"
+    "points_criterion_3", "points_criterion_4", "total_points", "sucesso"
 )
 
 disney_movies_to_save = disney_top_15_movies.select(
     "title", "listed_in", "release_year", "rating", "description",
     "points_criterion_1", "points_criterion_2", 
-    "points_criterion_3", "points_criterion_4", "total_points"
+    "points_criterion_3", "points_criterion_4", "total_points", "sucesso"
 )
 
 netflix_series_to_save.coalesce(1).write.mode("overwrite").option("header", "true").csv("./output/netflix_top_15_series_temp")
@@ -314,6 +339,163 @@ move_csv_file("./output/amazon_top_15_movies_temp", "./analysis/amazon_top_15_mo
 
 move_csv_file("./output/disney_top_15_series_temp", "./analysis/disney_top_15_series.csv")
 move_csv_file("./output/disney_top_15_movies_temp", "./analysis/disney_top_15_movies.csv")
+
+
+# Este código foi gerado depois de rodar a primeira vez o script acima. Essa é a criação das séries e filmes que foi feita manualmente pois não tenho Tokens para utilizar uma IA generativa.
+
+amazon_created_series = {
+    "title": "Modern Genius Girl",
+    "listed_in": "Comedy, Drama",
+    "release_year": "2020",
+    "rating": "ALL",
+    "description": "Modern Genius Girl follows Maya Torres, a 14-year-old prodigy who creates an emotional-connection app. Suddenly famous, she faces jealousy and family secrets. When she discovers a mysterious scientific recipe book, Maya and her quirky friends embark on tech-magical adventures that test their hearts and minds. A lighthearted story about friendship, diversity, and the power of genius with kindness."
+}
+
+amazon_created_movie = {
+    "title": "Summer Love",
+    "listed_in": "Comedy, Drama",
+    "release_year": "2019",
+    "rating": "13+",
+    "description": "Summer Love is a coming-of-age dramedy about Emma, a spirited 17-year-old whose summer plans fall apart after a family secret shatters her trust. Escaping to her grandmother’s beach house, she meets Alex, a charming musician hiding heartbreak of his own. Between laughter, late-night talks, and unexpected twists, Emma learns that love isn’t about perfection but the courage to forgive, to start over, and to believe in happiness again. A heartfelt story of second chances under the summer sun."
+}
+
+disney_created_movie = {
+    "title": "Story of Frozen Terror",
+    "listed_in": "Animation, Comedy",
+    "release_year": "2017",
+    "rating": "TV-G",
+    "description": "Story of The Frozen Terror follows a group of unlikely heroes Frosty, a clumsy snow creature, and Lumi, a talking lantern who must save their icy village after a mysterious freeze begins turning everything to stone. Along the way, they meet quirky allies and face hilarious challenges as they uncover the secret behind the frozen terror. Blending laughter, heart, and a touch of Disney magic, this animated comedy reminds us that even in the coldest times, friendship can melt any fear."
+}
+
+disney_created_series = {
+    "title": "Legend of the Fast Owl",
+    "listed_in": "Action-Adventure, Animation",
+    "release_year": "2016",
+    "rating": "TV-Y7",
+    "description": "Legend of the Fast Owl follows a young owl named Oliver who dreams of becoming the fastest flyer in the forest. With the help of his friends, he embarks on an epic adventure to compete in the Great Forest Race. Along the way, they encounter challenges that test their courage and friendship. This animated series is a heartwarming tale of perseverance, teamwork, and believing in oneself."
+}
+
+netflix_created_movie = {
+    "title": "The Perfect Statue",
+    "listed_in": "Dramas, International Movies",
+    "release_year": "2021",
+    "rating": "TV-14",
+    "description": "After finding an ancient statue connected to his family, a young statue restorer goes on a journey that mixes love, greed and redemption. Alongside a young archeologist he finds out the statue hides secrets capable of changing the destiny of them both. Nevertheless, the closer they get to the truth, the further they drift apart."
+}
+
+netflix_created_series = {
+    "title": "What Happens After an Accident",
+    "listed_in": "International TV Shows, TV dramas",
+    "release_year": "2021",
+    "rating": "TV-14",
+    "description": "A date arranged through a dating app turns into tragedy, forcing a single mother to fight for the son who survived by a miracle."
+}
+
+# Converter dicionários para DataFrames e calcular sucesso usando calculate_scores
+# Esta parte ficou bem feia, porém como o que foi feito para todas a 6 variáveis é o mesmo, deixei assim para não me orientar melhor
+
+amazon_series_custom_df = spark.createDataFrame([amazon_created_series])
+amazon_series_custom_df = amazon_series_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+amazon_series_combined = amazon_series_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    amazon_series_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+amazon_series_combined_scored = calculate_scores(amazon_series_combined, amazon_series_top_desc_words, amazon_series_top_genres, amazon_series_top_title_words)
+amazon_series_custom_scored = amazon_series_combined_scored.filter(col("title") == amazon_created_series["title"])
+
+amazon_movie_custom_df = spark.createDataFrame([amazon_created_movie])
+amazon_movie_custom_df = amazon_movie_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+amazon_movie_combined = amazon_movies_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    amazon_movie_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+amazon_movie_combined_scored = calculate_scores(amazon_movie_combined, amazon_movies_top_desc_words, amazon_movies_top_genres, amazon_movies_top_title_words)
+amazon_movie_custom_scored = amazon_movie_combined_scored.filter(col("title") == amazon_created_movie["title"])
+
+disney_movie_custom_df = spark.createDataFrame([disney_created_movie])
+disney_movie_custom_df = disney_movie_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+disney_movie_combined = disney_movies_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    disney_movie_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+disney_movie_combined_scored = calculate_scores(disney_movie_combined, disney_movies_top_desc_words, disney_movies_top_genres, disney_movies_top_title_words)
+disney_movie_custom_scored = disney_movie_combined_scored.filter(col("title") == disney_created_movie["title"])
+
+disney_series_custom_df = spark.createDataFrame([disney_created_series])
+disney_series_custom_df = disney_series_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+disney_series_combined = disney_series_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    disney_series_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+disney_series_combined_scored = calculate_scores(disney_series_combined, disney_series_top_desc_words, disney_series_top_genres, disney_series_top_title_words)
+disney_series_custom_scored = disney_series_combined_scored.filter(col("title") == disney_created_series["title"])
+
+netflix_movie_custom_df = spark.createDataFrame([netflix_created_movie])
+netflix_movie_custom_df = netflix_movie_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+netflix_movie_combined = netflix_movies_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    netflix_movie_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+netflix_movie_combined_scored = calculate_scores(netflix_movie_combined, netflix_movies_top_desc_words, netflix_movies_top_genres, netflix_movies_top_title_words)
+netflix_movie_custom_scored = netflix_movie_combined_scored.filter(col("title") == netflix_created_movie["title"])
+
+netflix_series_custom_df = spark.createDataFrame([netflix_created_series])
+netflix_series_custom_df = netflix_series_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+netflix_series_combined = netflix_series_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    netflix_series_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+netflix_series_combined_scored = calculate_scores(netflix_series_combined, netflix_series_top_desc_words, netflix_series_top_genres, netflix_series_top_title_words)
+netflix_series_custom_scored = netflix_series_combined_scored.filter(col("title") == netflix_created_series["title"])
+
+amazon_movie_custom_df = spark.createDataFrame([amazon_created_movie])
+amazon_movie_custom_df = amazon_movie_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+amazon_movie_combined = amazon_movies_scored.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    amazon_movie_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+amazon_movie_combined_scored = calculate_scores(amazon_movie_combined, amazon_movies_top_desc_words, amazon_movies_top_genres, amazon_movies_top_title_words)
+amazon_movie_custom_scored = amazon_movie_combined_scored.filter(col("title") == amazon_created_movie["title"])
+
+disney_movie_custom_df = spark.createDataFrame([disney_created_movie])
+disney_movie_custom_df = disney_movie_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+disney_movie_combined = disney_movies_scored.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    disney_movie_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+disney_movie_combined_scored = calculate_scores(disney_movie_combined, disney_movies_top_desc_words, disney_movies_top_genres, disney_movies_top_title_words)
+disney_movie_custom_scored = disney_movie_combined_scored.filter(col("title") == disney_created_movie["title"])
+
+disney_series_custom_df = spark.createDataFrame([disney_created_series])
+disney_series_custom_df = disney_series_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+disney_series_combined = disney_series_scored.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    disney_series_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+disney_series_combined_scored = calculate_scores(disney_series_combined, disney_series_top_desc_words, disney_series_top_genres, disney_series_top_title_words)
+disney_series_custom_scored = disney_series_combined_scored.filter(col("title") == disney_created_series["title"])
+
+netflix_movie_custom_df = spark.createDataFrame([netflix_created_movie])
+netflix_movie_custom_df = netflix_movie_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+netflix_movie_combined = netflix_movies_scored.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    netflix_movie_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+netflix_movie_combined_scored = calculate_scores(netflix_movie_combined, netflix_movies_top_desc_words, netflix_movies_top_genres, netflix_movies_top_title_words)
+netflix_movie_custom_scored = netflix_movie_combined_scored.filter(col("title") == netflix_created_movie["title"])
+
+netflix_series_custom_df = spark.createDataFrame([netflix_created_series])
+netflix_series_custom_df = netflix_series_custom_df.withColumn("description_scraped", remove_stopwords_udf(col("description")))
+netflix_series_combined = netflix_series_scored.select("title", "listed_in", "release_year", "rating", "description", "description_scraped").union(
+    netflix_series_custom_df.select("title", "listed_in", "release_year", "rating", "description", "description_scraped")
+)
+netflix_series_combined_scored = calculate_scores(netflix_series_combined, netflix_series_top_desc_words, netflix_series_top_genres, netflix_series_top_title_words)
+netflix_series_custom_scored = netflix_series_combined_scored.filter(col("title") == netflix_created_series["title"])
+
+result_amazon_series = amazon_series_custom_scored.select("title", "sucesso").collect()[0]
+result_amazon_movie = amazon_movie_custom_scored.select("title", "sucesso").collect()[0]
+result_disney_movie = disney_movie_custom_scored.select("title", "sucesso").collect()[0]
+result_disney_series = disney_series_custom_scored.select("title", "sucesso").collect()[0]
+result_netflix_movie = netflix_movie_custom_scored.select("title", "sucesso").collect()[0]
+result_netflix_series = netflix_series_custom_scored.select("title", "sucesso").collect()[0]
+
+# Print final para ver a porcentagem de sucesso calculada para cada Série/Filme gerado
+print(f"{result_amazon_series['title']}: {result_amazon_series['sucesso']}%")
+print(f"{result_amazon_movie['title']}: {result_amazon_movie['sucesso']}%")
+print(f"{result_disney_movie['title']}: {result_disney_movie['sucesso']}%")
+print(f"{result_disney_series['title']}: {result_disney_series['sucesso']}%")
+print(f"{result_netflix_movie['title']}: {result_netflix_movie['sucesso']}%")
+print(f"{result_netflix_series['title']}: {result_netflix_series['sucesso']}%")
 
 # Fechar SparkSession
 spark.stop()
