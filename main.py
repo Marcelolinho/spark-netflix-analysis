@@ -96,10 +96,8 @@ def get_top_words(df, column_name, top_n=10):
 
 netflix_series_top_desc_words = get_top_words(netflix_series_df, "description_scraped", 10)
 netflix_movies_top_desc_words = get_top_words(netflix_movies_df, "description_scraped", 10)
-
 amazon_movies_top_desc_words = get_top_words(amazon_movies_df, "description_scraped", 10)
 amazon_series_top_desc_words = get_top_words(amazon_series_df, "description_scraped", 10)
-
 disney_movies_top_desc_words = get_top_words(disney_movies_df, "description_scraped", 10)
 disney_series_top_desc_words = get_top_words(disney_series_df, "description_scraped", 10)
 
@@ -141,12 +139,111 @@ def get_top_title_words(df, top_n=10):
 
 netflix_series_top_title_words = get_top_title_words(netflix_series_df, 10)
 netflix_movies_top_title_words = get_top_title_words(netflix_movies_df, 10)
-
 amazon_series_top_title_words = get_top_title_words(amazon_series_df, 10)
 amazon_movies_top_title_words = get_top_title_words(amazon_movies_df, 10)
-
 disney_series_top_title_words = get_top_title_words(disney_series_df, 10)
 disney_movies_top_title_words = get_top_title_words(disney_movies_df, 10)
+
+# Função para escrever análises em arquivos txt
+def write_analysis_to_file(filename, content):
+    """Escreve conteúdo em um arquivo txt na pasta analysis-top"""
+    os.makedirs("./analysis-top", exist_ok=True)
+    filepath = os.path.join("./analysis-top", filename)
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+# Escrever top palavras das descrições
+write_analysis_to_file("netflix_series_top_desc_words.txt", 
+    "Netflix Séries - Top 10 Palavras das Descrições\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(netflix_series_top_desc_words)])
+)
+
+write_analysis_to_file("netflix_movies_top_desc_words.txt", 
+    "Netflix Filmes - Top 10 Palavras das Descrições\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(netflix_movies_top_desc_words)])
+)
+
+write_analysis_to_file("amazon_series_top_desc_words.txt", 
+    "Amazon Prime Séries - Top 10 Palavras das Descrições\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(amazon_series_top_desc_words)])
+)
+
+write_analysis_to_file("amazon_movies_top_desc_words.txt", 
+    "Amazon Prime Filmes - Top 10 Palavras das Descrições\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(amazon_movies_top_desc_words)])
+)
+
+write_analysis_to_file("disney_series_top_desc_words.txt", 
+    "Disney+ Séries - Top 10 Palavras das Descrições\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(disney_series_top_desc_words)])
+)
+
+write_analysis_to_file("disney_movies_top_desc_words.txt", 
+    "Disney+ Filmes - Top 10 Palavras das Descrições\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(disney_movies_top_desc_words)])
+)
+
+# Escrever top gêneros
+write_analysis_to_file("netflix_series_top_genres.txt", 
+    "Netflix Séries - Top 5 Gêneros\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['genre']}: {row['count']} títulos" for i, row in enumerate(netflix_series_top_genres)])
+)
+
+write_analysis_to_file("netflix_movies_top_genres.txt", 
+    "Netflix Filmes - Top 5 Gêneros\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['genre']}: {row['count']} títulos" for i, row in enumerate(netflix_movies_top_genres)])
+)
+
+write_analysis_to_file("amazon_series_top_genres.txt", 
+    "Amazon Prime Séries - Top 5 Gêneros\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['genre']}: {row['count']} títulos" for i, row in enumerate(amazon_series_top_genres)])
+)
+
+write_analysis_to_file("amazon_movies_top_genres.txt", 
+    "Amazon Prime Filmes - Top 5 Gêneros\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['genre']}: {row['count']} títulos" for i, row in enumerate(amazon_movies_top_genres)])
+)
+
+write_analysis_to_file("disney_series_top_genres.txt", 
+    "Disney+ Séries - Top 5 Gêneros\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['genre']}: {row['count']} títulos" for i, row in enumerate(disney_series_top_genres)])
+)
+
+write_analysis_to_file("disney_movies_top_genres.txt", 
+    "Disney+ Filmes - Top 5 Gêneros\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['genre']}: {row['count']} títulos" for i, row in enumerate(disney_movies_top_genres)])
+)
+
+# Escrever top palavras dos títulos
+write_analysis_to_file("netflix_series_top_title_words.txt", 
+    "Netflix Séries - Top 10 Palavras dos Títulos\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(netflix_series_top_title_words)])
+)
+
+write_analysis_to_file("netflix_movies_top_title_words.txt", 
+    "Netflix Filmes - Top 10 Palavras dos Títulos\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(netflix_movies_top_title_words)])
+)
+
+write_analysis_to_file("amazon_series_top_title_words.txt", 
+    "Amazon Prime Séries - Top 10 Palavras dos Títulos\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(amazon_series_top_title_words)])
+)
+
+write_analysis_to_file("amazon_movies_top_title_words.txt", 
+    "Amazon Prime Filmes - Top 10 Palavras dos Títulos\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(amazon_movies_top_title_words)])
+)
+
+write_analysis_to_file("disney_series_top_title_words.txt", 
+    "Disney+ Séries - Top 10 Palavras dos Títulos\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(disney_series_top_title_words)])
+)
+
+write_analysis_to_file("disney_movies_top_title_words.txt", 
+    "Disney+ Filmes - Top 10 Palavras dos Títulos\n" + "="*50 + "\n" +
+    "\n".join([f"{i+1}. {row['word']}: {row['count']} ocorrências" for i, row in enumerate(disney_movies_top_title_words)])
+)
 
 def calculate_scores(df, top_desc_words, top_genres, top_title_words):
     """Calcula pontuação baseada nos 4 critérios"""
